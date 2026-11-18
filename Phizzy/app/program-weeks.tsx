@@ -3,11 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Act
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from './_layout';
-import { fetchUserProgram, Program, WeekPlan } from '../firebase/program';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadCurrentUserProgram, Program } from '../firebase/program';
 import * as Progress from 'react-native-progress';
 
 export default function ProgramWeeksScreen() {
+  return <ProgramWeeksView showBackButton />;
+}
+
+export function ProgramWeeksView({ showBackButton = false }: { showBackButton?: boolean }) {
   const router = useRouter();
   const { themeColor } = useContext(ThemeContext);
   const [program, setProgram] = useState<Program | null>(null);
@@ -18,39 +21,11 @@ export default function ProgramWeeksScreen() {
     const loadProgram = async () => {
       try {
         setLoading(true);
-        // In a real app, you would get the user ID from authentication
-        // For now, we'll use a mock user ID
-        const userId = await AsyncStorage.getItem('userId') || 'default-user';
-        const userProgram = await fetchUserProgram(userId);
-        
+        const userProgram = await loadCurrentUserProgram();
         if (userProgram) {
           setProgram(userProgram);
         } else {
-          // If no program exists, create a mock program for demonstration
-          const mockProgram: Program = {
-            id: 'mock-program',
-            patientId: userId,
-            therapistId: 'therapist-1',
-            therapistName: 'Dr. Smith',
-            patientName: 'Andrew',
-            totalWeeks: 12,
-            weeks: Array.from({ length: 12 }, (_, i) => ({
-              weekNumber: i + 1,
-              startDate: new Date(Date.now() + i * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              endDate: new Date(Date.now() + (i + 1) * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              days: {
-                Monday: { exercises: [{ name: 'Squats', sets: '3 sets of 8' }] },
-                Tuesday: { exercises: [{ name: 'Bridges', sets: '3 sets of 8' }] },
-                Wednesday: { exercises: [{ name: 'Knee-to-Chest', sets: '3 sets of 8' }] },
-                Thursday: { exercises: [{ name: 'Supermans', sets: '3 sets of 8' }] },
-                Friday: { exercises: [{ name: 'Calf Raises', sets: '3 sets of 8' }] },
-              },
-              progress: Math.random() * 100,
-            })),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          setProgram(mockProgram);
+          setError('No program found. Please contact your therapist to set up your program.');
         }
       } catch (err) {
         console.error('Error loading program:', err);
@@ -64,7 +39,7 @@ export default function ProgramWeeksScreen() {
   }, []);
 
   const navigateToWeek = (weekNumber: number) => {
-    router.push(`/week/${weekNumber}`);
+    router.push({ pathname: '/week/[weekNumber]', params: { weekNumber: String(weekNumber) } });
   };
 
   if (loading) {
@@ -99,12 +74,16 @@ export default function ProgramWeeksScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColor }]}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="chevron-back" size={32} color="white" />
-          </TouchableOpacity>
+          {showBackButton ? (
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="chevron-back" size={32} color="white" />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.placeholder} />
+          )}
           <Text style={styles.headerTitle}>Your Program</Text>
           <View style={styles.placeholder} />
         </View>

@@ -8,7 +8,7 @@ import { ThemeContext } from './_layout';
 export default function UploadCompleteScreen() {
   const router = useRouter();
   const { themeColor } = useContext(ThemeContext);
-  const { videoUrl } = useLocalSearchParams();
+  const { videoUrl, exerciseName } = useLocalSearchParams<{ videoUrl?: string; exerciseName?: string }>();
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColor }]}>
@@ -33,9 +33,15 @@ export default function UploadCompleteScreen() {
 
           <TouchableOpacity 
             style={styles.continueButton}
-            onPress={() => router.push('/week/2')}
+            onPress={() =>
+              exerciseName && router.canGoBack()
+                ? router.back()
+                : router.replace('/(tabs)/home')
+            }
           >
-            <Text style={styles.continueButtonText}>Continue to Week 2</Text>
+            <Text style={styles.continueButtonText}>
+              {exerciseName ? `Back to ${exerciseName}` : 'Back to Home'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

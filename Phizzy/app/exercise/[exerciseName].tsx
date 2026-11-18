@@ -3,10 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Act
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../_layout';
-import { fetchUserProgram, Program, Exercise } from '../../firebase/program';
+import { loadCurrentUserProgram, Program, Exercise } from '../../firebase/program';
 import { fetchExerciseVideos, VideoMetadata } from '../../firebase/videos';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Video } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
 
 export default function ExerciseScreen() {
   const { exerciseName } = useLocalSearchParams();
@@ -23,8 +22,7 @@ export default function ExerciseScreen() {
     const loadExercise = async () => {
       try {
         setLoading(true);
-        const userId = await AsyncStorage.getItem('userId') || 'default-user';
-        const userProgram = await fetchUserProgram(userId);
+        const userProgram = await loadCurrentUserProgram();
         
         if (userProgram) {
           setProgram(userProgram);
@@ -125,7 +123,7 @@ export default function ExerciseScreen() {
                 source={{ uri: selectedVideo.url }}
                 style={styles.video}
                 useNativeControls
-                resizeMode="contain"
+                resizeMode={ResizeMode.CONTAIN}
                 isLooping={false}
               />
             </View>
@@ -170,7 +168,10 @@ export default function ExerciseScreen() {
             <TouchableOpacity 
               style={styles.startButton}
               onPress={() => {
-                router.push('/play');
+                router.push({
+                  pathname: '/parent-code',
+                  params: { exerciseName: exercise?.name ?? String(exerciseName) },
+                });
               }}
             >
               <Text style={styles.startButtonText}>Record New Video</Text>

@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Act
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../_layout';
-import { fetchUserProgram, Program, WeekPlan } from '../../firebase/program';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadCurrentUserProgram, Program, WeekPlan } from '../../firebase/program';
 import * as Progress from 'react-native-progress';
 
 export default function WeekScreen() {
@@ -21,8 +20,7 @@ export default function WeekScreen() {
     const loadWeekPlan = async () => {
       try {
         setLoading(true);
-        const userId = await AsyncStorage.getItem('userId') || 'default-user';
-        const userProgram = await fetchUserProgram(userId);
+        const userProgram = await loadCurrentUserProgram();
         
         if (userProgram) {
           setProgram(userProgram);
@@ -51,7 +49,7 @@ export default function WeekScreen() {
   }, [weekNumber]);
 
   const handleExercisePress = (exerciseName: string) => {
-    router.push(`/exercise/${exerciseName}`);
+    router.push({ pathname: '/exercise/[exerciseName]', params: { exerciseName } });
   };
 
   if (loading) {

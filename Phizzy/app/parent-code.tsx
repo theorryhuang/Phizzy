@@ -1,18 +1,21 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from './_layout';
+import { PARENT_CODE_LENGTH } from '../constants/Config';
 
 export default function ParentCodeScreen() {
   const router = useRouter();
   const { themeColor } = useContext(ThemeContext);
+  const { exerciseName } = useLocalSearchParams<{ exerciseName?: string }>();
   const [code, setCode] = useState('');
 
-  // Navigate to play page when exactly 4 digits are entered
+  // Navigate to the recording screen once a full code is entered.
+  // NOTE: the code is not verified yet; any PARENT_CODE_LENGTH-digit code is accepted.
   useEffect(() => {
-    if (code.length === 4) {
-      router.push('/play');
+    if (code.length === PARENT_CODE_LENGTH) {
+      router.replace({ pathname: '/play', params: exerciseName ? { exerciseName } : {} });
     }
   }, [code]);
 
@@ -33,18 +36,18 @@ export default function ParentCodeScreen() {
         <View style={styles.content}>
           <Text style={styles.title}>Parent Code Required</Text>
           <Text style={styles.subtitle}>
-            Please enter the 4-digit parent verification code
+            Please enter the {PARENT_CODE_LENGTH}-digit parent verification code
           </Text>
 
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Enter 4-digit code"
+              placeholder={`Enter ${PARENT_CODE_LENGTH}-digit code`}
               placeholderTextColor="rgba(255, 255, 255, 0.5)"
               value={code}
               onChangeText={setCode}
               keyboardType="number-pad"
-              maxLength={4}
+              maxLength={PARENT_CODE_LENGTH}
               autoFocus
             />
           </View>

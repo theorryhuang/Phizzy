@@ -6,7 +6,8 @@ import { useRouter } from 'expo-router';
 import * as Progress from 'react-native-progress';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchAvatars } from '../../firebase/avatars';
-import { fetchUserProgram, Program, Exercise } from '../../firebase/program';
+import { loadCurrentUserProgram, Program, Exercise } from '../../firebase/program';
+import { DAY_NAMES, StorageKeys } from '../../constants/Config';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function HomeScreen() {
   const [currentWeek, setCurrentWeek] = useState<number>(1);
   const [currentDay, setCurrentDay] = useState<string>('Monday');
   const [programLoading, setProgramLoading] = useState(true);
+  const [daysLeftInWeek, setDaysLeftInWeek] = useState<number | null>(null);
   
   // Fetch avatars from Firebase on component mount
   useEffect(() => {
@@ -28,13 +30,13 @@ export default function HomeScreen() {
         setAvatars(avatarUrls);
         
         // Load selected avatar
-        const savedAvatar = await AsyncStorage.getItem('selectedAvatar');
+        const savedAvatar = await AsyncStorage.getItem(StorageKeys.selectedAvatar);
         if (savedAvatar !== null) {
           setSelectedAvatar(parseInt(savedAvatar));
         } else {
           // Default to first avatar if none selected
           setSelectedAvatar(0);
-          await AsyncStorage.setItem('selectedAvatar', '0');
+          await AsyncStorage.setItem(StorageKeys.selectedAvatar, '0');
         }
       } catch (error) {
         console.error('Error loading avatars:', error);
@@ -52,17 +54,14 @@ export default function HomeScreen() {
     const loadProgram = async () => {
       try {
         setProgramLoading(true);
-        const userId = await AsyncStorage.getItem('userId') || 'default-user';
-        const userProgram = await fetchUserProgram(userId);
+        const userProgram = await loadCurrentUserProgram();
         
         if (userProgram) {
           setProgram(userProgram);
           
           // Determine current week and day
           const today = new Date();
-          const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          const currentDayName = dayNames[dayOfWeek];
+          const currentDayName = DAY_NAMES[today.getDay()];
           
           // Find the current week based on dates
           const currentWeekObj = userProgram.weeks.find(week => {
@@ -72,6 +71,8 @@ export default function HomeScreen() {
           });
           
           if (currentWeekObj) {
+            const msLeft = new Date(currentWeekObj.endDate).getTime() - today.getTime();
+            setDaysLeftInWeek(Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000))));
             setCurrentWeek(currentWeekObj.weekNumber);
             setCurrentDay(currentDayName);
             
@@ -103,13 +104,21 @@ export default function HomeScreen() {
   }, []);
 
   // Calculate overall program completion
-  const weekProgress = program ? 
+  const heroName = program?.patientName || 'Hero';
+  const encouragement =
+    daysLeftInWeek === null
+      ? `Keep going, ${heroName}! Every exercise brings you closer to your next Hero Milestone!`
+      : daysLeftInWeek === 0
+        ? `Keep going, ${heroName}! Your next Hero Milestone is today!`
+        : `Keep going, ${heroName}! Just ${daysLeftInWeek} more day${daysLeftInWeek === 1 ? '' : 's'} until your next Hero Milestone!`;
+
+  const weekProgress = program && program.weeks.length > 0 ? 
     program.weeks.reduce((sum, week) => sum + week.progress, 0) / program.weeks.length : 
     0;
   const overallProgress = weekProgress / 100;
 
   const handleExercisePress = (exerciseName: string) => {
-    router.push(`/exercise/${exerciseName}`);
+    router.push({ pathname: '/exercise/[exerciseName]', params: { exerciseName } });
   };
 
   return (
@@ -119,7 +128,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={true}
       >
         {/* Mission Control Section */}
-        <Text style={styles.title}>Andrew's Mission{'\n'}Control</Text>
+        <Text style={styles.title}>{heroName}'s Mission{'\n'}Control</Text>
 
         {/* Hero Card */}
         <View style={styles.heroCard}>
@@ -138,7 +147,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.speechBubble}>
               <Text style={styles.speechText}>
-                Keep going, Andrew! Just 3 more days until your next Hero Milestone!
+                {encouragement}
               </Text>
             </View>
           </View>

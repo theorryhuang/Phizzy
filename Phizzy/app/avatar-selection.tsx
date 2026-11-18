@@ -1,28 +1,27 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Import all avatar images
-const avatars = [
-  require('../assets/avatars/avatar1.png'),
-  require('../assets/avatars/avatar2.png'),
-  require('../assets/avatars/avatar3.png'),
-  require('../assets/avatars/avatar4.png'),
-  require('../assets/avatars/avatar5.png'),
-  require('../assets/avatars/avatar6.png'),
-  require('../assets/avatars/avatar7.png'),
-  require('../assets/avatars/avatar8.png'),
-];
+import { fetchAvatars } from '../firebase/avatars';
+import { StorageKeys } from '../constants/Config';
 
 export default function AvatarSelectionScreen() {
+  const [avatars, setAvatars] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedAvatar, setSelectedAvatar] = useState<number | null>(null);
+
+  // Avatars live in Firebase Storage so the home screen can show the same image by index.
+  useEffect(() => {
+    fetchAvatars()
+      .then(setAvatars)
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleAvatarSelect = async (index: number) => {
     setSelectedAvatar(index);
     try {
-      await AsyncStorage.setItem('selectedAvatar', index.toString());
+      await AsyncStorage.setItem(StorageKeys.selectedAvatar, index.toString());
     } catch (error) {
       console.error('Error saving avatar selection:', error);
     }
@@ -30,7 +29,6 @@ export default function AvatarSelectionScreen() {
 
   const handleContinue = () => {
     if (selectedAvatar !== null) {
-      console.log('Navigating to home screen...');
       router.push('/(tabs)/home');
     }
   };
@@ -47,6 +45,10 @@ export default function AvatarSelectionScreen() {
             <Text style={styles.title}>Select Your Hero</Text>
           </View>
 
+          {loading && <ActivityIndicator size="large" color="white" />}
+          {!loading && avatars.length === 0 && (
+            <Text style={styles.emptyText}>No avatars found. Upload images to the avatars folder in Firebase Storage.</Text>
+          )}
           <View style={styles.avatarGrid}>
             {avatars.map((avatar, index) => (
               <TouchableOpacity
@@ -57,7 +59,7 @@ export default function AvatarSelectionScreen() {
                 ]}
                 onPress={() => handleAvatarSelect(index)}
               >
-                <Image source={avatar} style={styles.avatarImage} />
+                <Image source={{ uri: avatar }} style={styles.avatarImage} />
                 {selectedAvatar === index && (
                   <View style={styles.selectedHighlight} />
                 )}
@@ -107,6 +109,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flex: 1,
     marginRight: 40,
+  },
+  emptyText: {
+    color: 'white',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
   },
   avatarGrid: {
     flexDirection: 'row',

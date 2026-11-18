@@ -1,14 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Platform, ActivityIndicator, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useContext } from 'react';
 import { ThemeContext } from './_layout';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadVideo } from '../firebase/videos';
+import { uploadVideo, buildVideoFileName } from '../firebase/videos';
 
-export default function SquatPlayScreen() {
+const GENERAL_INSTRUCTIONS = [
+  'Clear some space and make sure your whole body is in frame',
+  'Follow the form your therapist showed you',
+  'Move slowly and with control',
+  'Record from the side for best form analysis',
+];
+
+export default function PlayScreen() {
   const router = useRouter();
+  const { exerciseName: exerciseParam } = useLocalSearchParams<{ exerciseName?: string }>();
+  const exerciseName = exerciseParam || 'Exercise';
   const { themeColor } = useContext(ThemeContext);
   const [videoSource, setVideoSource] = useState<'none' | 'record' | 'upload'>('none');
   const [video, setVideo] = useState<any>(null);
@@ -58,7 +67,7 @@ export default function SquatPlayScreen() {
     }
   };
 
-  const uploadVideo = async () => {
+  const handleUpload = async () => {
     if (!video) return;
 
     setIsUploading(true);
@@ -66,11 +75,8 @@ export default function SquatPlayScreen() {
     setUploadResult(null);
 
     try {
-      // Extract file extension
       const localUri = video.uri;
-      const uriParts = localUri.split('.');
-      const fileType = uriParts[uriParts.length - 1];
-      const fileName = `squat-exercise-${Date.now()}.${fileType}`;
+      const fileName = buildVideoFileName(exerciseName, localUri);
 
       // Upload to Firebase Storage
       const downloadURL = await uploadVideo(
@@ -83,9 +89,9 @@ export default function SquatPlayScreen() {
 
       // Navigate to upload complete screen after successful upload
       setTimeout(() => {
-        router.push({
+        router.replace({
           pathname: '/upload-complete',
-          params: { videoUrl: downloadURL }
+          params: { videoUrl: downloadURL, exerciseName }
         });
       }, 1000);
     } catch (error: any) {
@@ -119,7 +125,7 @@ export default function SquatPlayScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.title}>Squats</Text>
+          <Text style={styles.title}>{exerciseName}</Text>
           <Text style={styles.subtitle}>Record your exercise to track progress</Text>
 
           {!isUploading && !uploadResult && videoSource === 'none' && (
@@ -161,7 +167,7 @@ export default function SquatPlayScreen() {
                   </View>
                   <TouchableOpacity 
                     style={[styles.uploadButton, { backgroundColor: '#4CAF50' }]}
-                    onPress={uploadVideo}
+                    onPress={handleUpload}
                   >
                     <Text style={styles.uploadButtonText}>Start Upload</Text>
                   </TouchableOpacity>
@@ -179,7 +185,7 @@ export default function SquatPlayScreen() {
             <View style={styles.uploadContainer}>
               <View style={styles.uploadProgressContainer}>
                 <View style={[styles.uploadProgressBar, { width: `${uploadProgress}%` }]} />
-                <Text style={styles.uploadProgressText}>{uploadProgress}%</Text>
+                <Text style={styles.uploadProgressText}>{Math.round(uploadProgress)}%</Text>
               </View>
               <Text style={styles.uploadingText}>Uploading your video...</Text>
               <ActivityIndicator size="large" color="white" style={{ marginTop: 10 }} />
@@ -204,11 +210,7 @@ export default function SquatPlayScreen() {
           <View style={styles.instructionsContainer}>
             <Text style={styles.instructionsTitle}>Instructions</Text>
             <Text style={styles.instructionsText}>
-              • Stand with feet shoulder-width apart{'\n'}
-              • Lower your body by bending your knees and hips{'\n'}
-              • Keep your back straight and chest up{'\n'}
-              • Return to standing position{'\n'}
-              • Record from the side for best form analysis
+              {GENERAL_INSTRUCTIONS.map((line) => `• ${line}`).join('\n')}
             </Text>
           </View>
           )}

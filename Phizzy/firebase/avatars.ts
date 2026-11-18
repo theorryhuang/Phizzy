@@ -1,11 +1,12 @@
 import { getStorage, ref, listAll, getDownloadURL } from 'firebase/storage';
 import { app } from '../firebaseConfig';
+import { StoragePaths } from '../constants/Config';
 
 const storage = getStorage(app);
 
 export const fetchAvatars = async () => {
   try {
-    const avatarsRef = ref(storage, 'avatars');
+    const avatarsRef = ref(storage, StoragePaths.avatars);
     const result = await listAll(avatarsRef);
     
     const avatarUrls = await Promise.all(

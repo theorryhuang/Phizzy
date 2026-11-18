@@ -1,27 +1,46 @@
-import React, { useContext } from 'react';
-import { ImageBackground, View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useContext, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemeContext } from '../_layout';
-import backgroundImage from '../../assets/map_images/1175f64208ff7f61fe360b28a9c155428c5e91c3.png';
-import headerImage from '../../assets/map_images/7d3220846108c7971d252cc6f5addfb03152cdbc.png';
+import { loadCurrentUserProgram } from '../../firebase/program';
+import { WEEK_TITLES } from '../../constants/Config';
 
 export default function MapScreen() {
   const router = useRouter();
   const { themeColor } = useContext(ThemeContext);
+  const [weekNumbers, setWeekNumbers] = useState<number[]>(
+    WEEK_TITLES.map((_, i) => i + 1)
+  );
+
+  // Build the map from the user's program; fall back to one stop per story title.
+  useEffect(() => {
+    loadCurrentUserProgram()
+      .then((program) => {
+        if (program && program.weeks.length > 0) {
+          setWeekNumbers(program.weeks.map((w) => w.weekNumber).sort((x, y) => x - y));
+        }
+      })
+      .catch((error) => console.error('Error loading program for map:', error));
+  }, []);
 
   const navigateToWeek = (weekNumber: number) => {
-    router.push(`/week/${weekNumber}` as any);
+    router.push({ pathname: '/week/[weekNumber]', params: { weekNumber: String(weekNumber) } });
   };
 
+  const weekTitle = (week: number) => WEEK_TITLES[week - 1] ?? 'Keep Training';
+
+  // Highest week at the top, so the journey is climbed from the bottom up.
+  const stops = [...weekNumbers].reverse();
+
   return (
-    <ImageBackground source={backgroundImage} style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColor }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Image source={headerImage} style={styles.headerImage} resizeMode="contain" />
+          <Text style={styles.headerTitle}>Hero Journey</Text>
         </View>
 
         <View style={styles.mapContent}>
-          {[4, 3, 2, 1].map((week) => (
+          {stops.map((week, index) => (
             <React.Fragment key={week}>
               <View style={styles.milestone}>
                 <View style={[styles.bubbleContainer, { alignItems: week % 2 === 0 ? 'flex-end' : 'flex-start' }]}> 
@@ -29,28 +48,27 @@ export default function MapScreen() {
                     <View style={[styles.bubble, styles.weekBubble]}>
                       <Text style={styles.bubbleText}>
                         Week {week}:{'\n'}
-                        {week === 4 ? 'Save the City' : week === 3 ? 'Power Up' : week === 2 ? 'Meet Your Battle' : 'Learn Powers'}
+                        {weekTitle(week)}
                       </Text>
                     </View>
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {week > 1 && (
+              {index < stops.length - 1 && (
                 <View style={[styles.pathLine, week % 2 === 0 ? styles.pathLineLeft : styles.pathLineRight]} />
               )}
             </React.Fragment>
           ))}
         </View>
       </ScrollView>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    resizeMode: 'cover',
   },
   scrollContent: {
     flexGrow: 1,
@@ -58,12 +76,13 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 40,
+    paddingTop: 70,
     paddingBottom: 20,
   },
-  headerImage: {
-    width: '80%',
-    height: 300,
+  headerTitle: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: 'white',
   },
   mapContent: {
     paddingHorizontal: 20,
